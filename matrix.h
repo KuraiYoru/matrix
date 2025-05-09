@@ -25,19 +25,7 @@ matrix* matrix_alloc_id(size_t w, size_t h);
 // Assignment
 int matrix_assign(matrix* m1, const matrix* m2);
 
-// Arithmetic operations
-int matrix_add(matrix* m1, const matrix* m2);
-int matrix_sub(matrix* m1, const matrix* m2);
-void matrix_smul(matrix* m, double d);
-void matrix_sdiv(matrix* m, double d);
 
-int matrix_add2(matrix* m, const matrix* m1, const matrix* m2);
-int matrix_sub2(matrix* m, const matrix* m1, const matrix* m2);
-int matrix_smul2(matrix* m, const matrix* m1, double d);
-int matrix_sdiv2(matrix* m, const matrix* m1, double d);
-
-int matrix_mul(matrix* m1, const matrix* m2);
-int matrix_mul2(matrix* m, const matrix* m1, const matrix* m2);
 
 // Matrix manipulations
 void matrix_transpose(matrix* m);
@@ -51,8 +39,5 @@ double matrix_norm(const matrix* m);
 void matrix_print(const matrix* m);
 matrix* matrix_input(size_t w, size_t h);
 
-// Special functions
-matrix* matrix_exp(const matrix* m, double eps);
-matrix* matrix_solve_gauss(const matrix* A, const matrix* B);
 
 #endif // MATRIX_H

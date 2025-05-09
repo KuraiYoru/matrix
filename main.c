@@ -1,5 +1,7 @@
 #include "matrix.h"
 #include <stdio.h>
+#include "matrix_operations.h"
+#include "matrix_manipulations.h"
 
 int main() {
 

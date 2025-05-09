@@ -16,7 +16,7 @@ matrix* matrix_alloc(size_t w, size_t h) {
     matrix* m = malloc(sizeof(matrix));
     if (!m) return NULL;
     
-    m->data = malloc(w * h * sizeof(double));
+    m->data = calloc(w * h, sizeof(double));  // Используем calloc вместо malloc для инициализации нулями
     if (!m->data) {
         free(m);
         return NULL;
@@ -398,80 +398,79 @@ matrix* matrix_exp(const matrix* m, double eps) {
 }
 
 matrix* matrix_solve_gauss(const matrix* A, const matrix* B) {
+    // Проверка входных параметров
     if (!A || !B || A->w != A->h || A->h != B->h || B->w != 1)
         return NULL;
     
-    size_t n = A->h;
+    const size_t n = A->h;
     
-    // Create augmented matrix [A|B]
-    matrix* AB = matrix_alloc(n, n + 1);
-    if (!AB) return NULL;
-    
-    // Copy A to AB
-    for (size_t i = 0; i < n; ++i) {
-        for (size_t j = 0; j < n; ++j) {
-            *matrix_ptr(AB, i, j) = *matrix_cptr(A, i, j);
-        }
+    // Создаем копии матриц A и B, чтобы не изменять оригиналы
+    matrix* ACopy = matrix_copy(A);
+    matrix* BCopy = matrix_copy(B);
+    if (!ACopy || !BCopy) {
+        matrix_free(ACopy);
+        matrix_free(BCopy);
+        return NULL;
     }
     
-    // Copy B to the last column of AB
-    for (size_t i = 0; i < n; ++i) {
-        *matrix_ptr(AB, i, n) = *matrix_cptr(B, i, 0);
-    }
-    
-    // Forward elimination (Gaussian elimination)
+    // Прямой ход метода Гаусса
     for (size_t k = 0; k < n; ++k) {
-        // Find row with maximum element in k-th column
+        // Поиск строки с максимальным элементом в столбце k
         size_t max_row = k;
-        double max_val = fabs(*matrix_ptr(AB, k, k));
+        double max_val = fabs(*matrix_ptr(ACopy, k, k));
         
         for (size_t i = k + 1; i < n; ++i) {
-            double val = fabs(*matrix_ptr(AB, i, k));
+            double val = fabs(*matrix_ptr(ACopy, i, k));
             if (val > max_val) {
                 max_val = val;
                 max_row = i;
             }
         }
         
-        // Swap rows
+        // Перестановка строк
         if (max_row != k) {
-            matrix_swap_rows(AB, k, max_row);
+            matrix_swap_rows(ACopy, k, max_row);
+            // Также меняем соответствующие элементы в векторе B
+            double tmp = *matrix_ptr(BCopy, k, 0);
+            *matrix_ptr(BCopy, k, 0) = *matrix_ptr(BCopy, max_row, 0);
+            *matrix_ptr(BCopy, max_row, 0) = tmp;
         }
         
-        // Check for singularity
-        if (fabs(*matrix_ptr(AB, k, k)) < 1e-12) {
-            matrix_free(AB);
-            return NULL; // Matrix is singular
+        // Проверка на вырожденность
+        if (fabs(*matrix_ptr(ACopy, k, k)) < 1e-12) {
+            matrix_free(ACopy);
+            matrix_free(BCopy);
+            return NULL;
         }
         
-        // Normalize k-th row
-        double pivot = *matrix_ptr(AB, k, k);
-        for (size_t j = k; j < n + 1; ++j) {
-            *matrix_ptr(AB, k, j) /= pivot;
-        }
-        
-        // Eliminate k-th column in other rows
-        for (size_t i = 0; i < n; ++i) {
-            if (i != k) {
-                double factor = *matrix_ptr(AB, i, k);
-                for (size_t j = k; j < n + 1; ++j) {
-                    *matrix_ptr(AB, i, j) -= factor * *matrix_ptr(AB, k, j);
-                }
+        // Исключение столбца k в нижних строках
+        for (size_t i = k + 1; i < n; ++i) {
+            double factor = *matrix_ptr(ACopy, i, k) / *matrix_ptr(ACopy, k, k);
+            *matrix_ptr(BCopy, i, 0) -= factor * *matrix_ptr(BCopy, k, 0);
+            
+            for (size_t j = k; j < n; ++j) {
+                *matrix_ptr(ACopy, i, j) -= factor * *matrix_ptr(ACopy, k, j);
             }
         }
     }
     
-    // Extract solution from the last column of AB
+    // Обратный ход метода Гаусса
     matrix* X = matrix_alloc(1, n);
     if (!X) {
-        matrix_free(AB);
+        matrix_free(ACopy);
+        matrix_free(BCopy);
         return NULL;
     }
-    
-    for (size_t i = 0; i < n; ++i) {
-        *matrix_ptr(X, i, 0) = *matrix_ptr(AB, i, n);
+
+    for (size_t i = n; i-- > 0; ) {
+        double sum = 0.0;
+        for (size_t j = i + 1; j < n; ++j) {
+            sum += *matrix_ptr(ACopy, i, j) * *matrix_ptr(X, j, 0);
+        }
+        *matrix_ptr(X, i, 0) = (*matrix_ptr(BCopy, i, 0) - sum) / *matrix_ptr(ACopy, i, i);
     }
     
-    matrix_free(AB);
+    matrix_free(ACopy);
+    matrix_free(BCopy);
     return X;
 }
